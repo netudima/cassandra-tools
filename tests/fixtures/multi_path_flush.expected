@@ -1,0 +1,9 @@
+timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
+2026-04-01 17:12:43|flush|nb-2-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-3-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-4-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-5-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-6-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-7-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-8-big|114.322||easy_cass_stress1.random_access
+2026-04-01 17:12:43|flush|nb-9-big|114.322||easy_cass_stress1.random_access

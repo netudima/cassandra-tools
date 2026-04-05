@@ -2,13 +2,21 @@
 
 # SSTable Timeline Generator
 # Parses Cassandra logs and generates an interactive HTML timeline visualization
-# Usage: ./sstable_timeline.sh <logfile> [output.html]
+# Usage: ./sstable_timeline.sh [--parse-only] <logfile> [output.html]
 set -euo pipefail
 
-# Check arguments
+# ===== SECTION: ARGUMENT PARSING & SETUP =====
+
+PARSE_ONLY=false
+if [ "${1:-}" = "--parse-only" ]; then
+    PARSE_ONLY=true
+    shift
+fi
+
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <logfile> [output.html]"
+    echo "Usage: $0 [--parse-only] <logfile> [output.html]"
     echo "Example: $0 Jan16_17.log timeline.html"
+    echo "         $0 --parse-only Jan16_17.log"
     exit 1
 fi
 
@@ -20,23 +28,18 @@ if [ ! -f "$LOGFILE" ]; then
     exit 1
 fi
 
-# Temporary files
-EVENTS_FILE=$(mktemp)
-HTML_PART1=$(mktemp)
-HTML_PART2=$(mktemp)
-trap "rm -f $EVENTS_FILE $HTML_PART1 $HTML_PART2" EXIT
+# ===== SECTION: AWK LOG PARSER =====
+# Output format: timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
 
-echo "Parsing log file: $LOGFILE"
-
-# Parse log file and extract SSTable events
-# Format: timestamp|event_type|sstable_name|size_mb|compaction_id
+run_parser() {
 gawk '
 function parse_size(size_str) {
-    if (match(size_str, /([0-9.]+)(GiB|MiB)/, arr)) {
+    if (match(size_str, /([0-9.]+)(GiB|MiB|KiB)/, arr)) {
         val = arr[1]
         unit = arr[2]
         if (unit == "GiB") return val * 1024
         if (unit == "MiB") return val
+        if (unit == "KiB") return val / 1024
     }
     return 0
 }
@@ -74,7 +77,7 @@ function extract_keyspace_table(path) {
     match($0, /([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})/, ts)
     timestamp = ts[1]
 
-    match($0, /biggest ([0-9.]+[GM]iB)/, s)
+    match($0, /biggest ([0-9.]+[GMK]iB)/, s)
     size_mb = parse_size(s[1])
 
     str = $0
@@ -99,7 +102,7 @@ function extract_keyspace_table(path) {
     match($0, /sstables to \[([^\]]+)\]/, p)
     bracket_content = p[1]
 
-    match($0, /\.  ([0-9.]+[GM]iB) to ([0-9.]+[GM]iB)/, s)
+    match($0, /\.  ([0-9.]+[GMK]iB) to ([0-9.]+[GMK]iB)/, s)
     size_mb = parse_size(s[2])
 
     n_paths = split(bracket_content, paths, ",")
@@ -123,9 +126,28 @@ function extract_keyspace_table(path) {
 
     print timestamp "|delete|" sstable "|0||" kstable
 }
-' "$LOGFILE" | sort > "$EVENTS_FILE"
+' "$1" | sort
+}
 
-echo "Extracted $(wc -l < $EVENTS_FILE) events"
+echo "Parsing log file: $LOGFILE" >&2
+
+if [ "$PARSE_ONLY" = true ]; then
+    echo "timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table"
+    run_parser "$LOGFILE"
+    exit 0
+fi
+
+# ===== SECTION: HTML GENERATION =====
+
+# Temporary files
+EVENTS_FILE=$(mktemp)
+HTML_PART1=$(mktemp)
+HTML_PART2=$(mktemp)
+trap "rm -f $EVENTS_FILE $HTML_PART1 $HTML_PART2" EXIT
+
+run_parser "$LOGFILE" > "$EVENTS_FILE"
+
+echo "Extracted $(wc -l < "$EVENTS_FILE") events"
 
 # Generate HTML part 1 (before data)
 cat > "$HTML_PART1" << 'EOF'
@@ -370,6 +392,8 @@ EOF
 cat > "$HTML_PART2" << 'EOF'
 `;
 
+        // ===BEGIN_DATA_PROCESSING===
+
         // Parse events
         const events = rawData.trim().split('\n')
             .filter(line => line.length > 0)
@@ -501,6 +525,8 @@ cat > "$HTML_PART2" << 'EOF'
                 const sizeB = b.size || 0;
                 return sizeA - sizeB;
             });
+
+        // ===END_DATA_PROCESSING===
 
         // Update stats
         const flushCount = timelineData.filter(s => s.type === 'flush').length;
@@ -1028,7 +1054,7 @@ cat > "$HTML_PART2" << 'EOF'
 </html>
 EOF
 
-# Combine parts with data
+# ===== SECTION: ASSEMBLY =====
 echo "Generating HTML timeline..."
 cat "$HTML_PART1" "$EVENTS_FILE" "$HTML_PART2" > "$OUTPUT"
 

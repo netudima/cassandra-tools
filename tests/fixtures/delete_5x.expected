@@ -1,0 +1,2 @@
+timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
+2026-04-01 16:52:25|delete|nb-101-big|0||system.local

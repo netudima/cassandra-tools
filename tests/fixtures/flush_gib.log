@@ -1,0 +1,1 @@
+./debug.log:DEBUG [MemtableFlushWriter:1] 2026-01-16 01:00:00,000 ColumnFamilyStore.java:1197 - Flushed to [BigTableReader(path='/cassandra_data/ks1/tbl1-abcdef1234567890abcdef1234567890/nb-100-big-Data.db')] (1 sstables, 1.500GiB), biggest 1.500GiB, smallest 1.500GiB

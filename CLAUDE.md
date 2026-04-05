@@ -6,9 +6,22 @@
 
 ## Architecture
 
-- **AWK parser** extracts events from the log, outputs `timestamp|type|sstable|size_mb|compaction_id|keyspace.table`
-- **HTML/JS** (embedded in the script between `HTML_PART1` and `HTML_PART2`) renders a Canvas-based timeline
-- Output is a single self-contained HTML file
+`sstable_timeline.sh` is a single self-contained file with clearly marked internal sections:
+
+- **`SECTION: ARGUMENT PARSING & SETUP`** — `--parse-only` flag and argument handling
+- **`SECTION: AWK LOG PARSER`** — `run_parser()` function wrapping the AWK block; outputs `timestamp|type|sstable|size_mb|compaction_id|keyspace.table`
+- **`SECTION: HTML GENERATION`** — two heredocs (`HTML_PART1`, `HTML_PART2`) assembled with the events in between
+- **`SECTION: ASSEMBLY`** — `cat $HTML_PART1 $EVENTS_FILE $HTML_PART2 > $OUTPUT`
+
+The JS data-processing logic inside the HTML is delimited with `===BEGIN_DATA_PROCESSING===` / `===END_DATA_PROCESSING===` comments so it can be extracted and tested independently.
+
+## `--parse-only` mode
+
+```bash
+./sstable_timeline.sh --parse-only debug.log    # prints pipe-delimited events to stdout
+```
+
+Useful for debugging and is the interface used by parser tests.
 
 ## AWK parser functions
 
@@ -39,6 +52,20 @@ open 4.1_debug_grep_prefixed.html
 open 5.0_debug_ucs_sharded_flush.html
 ```
 
+### Automated tests
+
+```bash
+./tests/run_tests.sh
+```
+
+- **`tests/test_parser.bats`** — bats tests invoking `--parse-only` against fixture files in `tests/fixtures/`
+- **`tests/test_visualization.js`** — node tests that extract the `===BEGIN/END_DATA_PROCESSING===` block from the script and run it with test data
+
+Test fixtures:
+- `flush_mib.log`, `flush_gib.log`, `compaction.log`, `delete_preexisting.log`, `multi_path_flush.log` — targeted unit fixtures
+- `4.1_full.expected` — golden output of `4.1_debug_grep_prefixed.log` (regression test)
+
 ## Requirements
 
 - `gawk` (GNU AWK): `brew install gawk` / `apt-get install gawk`
+- Tests: `bats-core` (`brew install bats-core`) and `node` (`brew install node`)

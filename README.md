@@ -70,12 +70,13 @@ The generated HTML shows:
 ### Usage
 
 ```bash
-./sstable_timeline.sh <logfile> [output.html]
+./sstable_timeline.sh [--parse-only] <logfile> [output.html]
 ```
 
 **Arguments:**
+- `--parse-only` - (Optional) Print pipe-delimited parsed events to stdout instead of generating HTML; useful for debugging and scripting
 - `logfile` - Path to Cassandra debug log file
-- `output.html` - (Optional) Output filename (default: input filename with `.html` extension)
+- `output.html` - (Optional) Output HTML filename (default: input filename with `.html` extension)
 
 **Examples:**
 

@@ -1,0 +1,1 @@
+./debug.log.2026-01-16_1101:INFO  [NonPeriodicTasks:1] 2026-01-16 03:17:04,345 SSTable.java:111 - Deleting sstable: /cassandra_data/test_keyspace/test_table-395f4600e0cf11ec8215f573db44ed38/nb-4472-big

@@ -1,0 +1,2 @@
+timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
+2026-01-16 03:17:04|delete|nb-4472-big|0||test_keyspace.test_table

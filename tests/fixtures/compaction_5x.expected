@@ -1,0 +1,3 @@
+timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
+2026-04-01 16:52:25|compaction|nb-105-big|0|c7800230-2de2-11f1-bcd8-3b17315973d1|system.local
+2026-04-01 16:52:25|delete|nb-101-big|0||system.local

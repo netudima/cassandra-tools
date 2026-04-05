@@ -1,0 +1,1 @@
+INFO  [NonPeriodicTasks:1] 2026-04-01 16:52:25,900 BigFormat.java:231 - Deleting sstable: /home/psc/cassandra506/cassandra1/./data/data/system/local-7ad54392bcdd35a684174e047860b377/nb-101-big

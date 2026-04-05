@@ -1,0 +1,1 @@
+INFO  [CompactionExecutor:1] 2026-04-01 16:52:25,843 CompactionTask.java:268 - Compacted (c77a83f0-2de2-11f1-bcd8-3b17315973d1) 1 sstables to [] to level=0.  0B to 0B (~0% of original) in 18ms.  Read Throughput = 0.000B/s, Write Throughput = 0.000B/s, Row Throughput = ~0/s.  0 total partitions merged to 0.  Partition merge counts were {}. Time spent writing keys = 13ms
