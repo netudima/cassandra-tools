@@ -2,27 +2,45 @@
 
 ## Project
 
-`sstable_timeline.sh` — parses Cassandra debug logs, generates an interactive HTML timeline of SSTable lifecycles.
+Two tools, each a single self-contained script at the repo root:
+
+- **`sstable_timeline.sh`** — parses Cassandra debug logs, generates an interactive HTML timeline of SSTable lifecycles.
+- **`sstablemetadata_viz.sh`** — parses `sstablemetadata` output, generates an HTML visualization with timestamp-range and token-range tabs.
+
+Tests and sample data live under `tests/<tool-name>/`.
 
 ## Architecture
 
-`sstable_timeline.sh` is a single self-contained file with clearly marked internal sections:
+Both scripts share the same internal structure:
 
-- **`SECTION: ARGUMENT PARSING & SETUP`** — `--parse-only` flag and argument handling
-- **`SECTION: AWK LOG PARSER`** — `run_parser()` function wrapping the AWK block; outputs `timestamp|type|sstable|size_mb|compaction_id|keyspace.table`
-- **`SECTION: HTML GENERATION`** — two heredocs (`HTML_PART1`, `HTML_PART2`) assembled with the events in between
-- **`SECTION: ASSEMBLY`** — `cat $HTML_PART1 $EVENTS_FILE $HTML_PART2 > $OUTPUT`
+```
+script.sh
+├── SECTION: ARGUMENT PARSING & SETUP   (--parse-only flag, output filename derivation)
+├── SECTION: AWK PARSER                 (run_parser() function)
+├── SECTION: HTML GENERATION            (HTML_HEAD heredoc + HTML_TAIL heredoc)
+└── SECTION: ASSEMBLY                   (cat HEAD EVENTS TAIL > OUTPUT)
+```
 
-The JS data-processing logic inside the HTML is delimited with `===BEGIN_DATA_PROCESSING===` / `===END_DATA_PROCESSING===` comments so it can be extracted and tested independently.
+The JS data-processing block inside each HTML heredoc is delimited with `===BEGIN_DATA_PROCESSING===` / `===END_DATA_PROCESSING===` comments so it can be extracted and tested independently by the node test suite.
+
+### sstable_timeline.sh
+
+- **`SECTION: AWK LOG PARSER`** — `run_parser()` outputs `timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table`
+- **`SECTION: HTML GENERATION`** — heredocs `HTML_PART1` / `HTML_PART2` assembled around the events file
+
+### sstablemetadata_viz.sh
+
+- **`SECTION: AWK PARSER`** — `run_parser()` outputs `sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token`
+- **`SECTION: HTML GENERATION`** — heredocs `HTML_HEAD` / `HTML_TAIL`; two-tab Canvas visualization (Timestamp Ranges, Token Ranges)
 
 ## `--parse-only` mode
 
+Both scripts support `--parse-only`. Progress messages go to stderr; only the header and pipe-delimited data rows go to stdout.
+
+**sstable_timeline.sh:**
 ```bash
 ./sstable_timeline.sh --parse-only debug.log
 ```
-
-Prints a header line followed by pipe-delimited events to stdout; progress goes to stderr. Useful for debugging and is the interface used by parser tests.
-
 ```
 timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
 2026-01-16 00:00:08|flush|nb-4477-big|59.399||test_keyspace.test_table
@@ -30,14 +48,33 @@ timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
 2026-01-16 03:17:04|delete|nb-4472-big|0||test_keyspace.test_table
 ```
 
+**sstablemetadata_viz.sh:**
+```bash
+./sstablemetadata_viz.sh --parse-only metadata.out
+```
+```
+sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token
+nb-13-big|system.sstable_activity_v2|1775374724542000|1775374725524002|-5519576429900224076|8615509011068470516
+```
+
 ## AWK parser functions
+
+### sstable_timeline.sh
 
 - `parse_size()` — converts GiB/MiB/KiB to MiB (sub-byte sizes return 0)
 - `extract_sstable_name(path)` — extracts `nb-XXXX-big` from full path
 - `extract_keyspace_table(path)` — extracts `keyspace.table` (strips UUID suffix from table dir; handles relative `./` paths)
 - Three pattern blocks: `Flushed to [BigTableReader`, `Compacted.*sstables to`, `Deleting sstable:`
 
-## Log patterns
+### sstablemetadata_viz.sh
+
+- `extract_sstable_name(path)` — last path component
+- `extract_keyspace_table(path)` — same UUID-stripping logic as sstable_timeline.sh
+- State machine: `SSTable:` resets current block; `Minimum/Maximum timestamp:` extracts µs epoch from `(...)`; `First/Last token:` extracts numeric prefix; `IsTransient:` emits the row if not already seen (deduplication via `seen[]` array); `END` rule emits the last block if it had no `IsTransient:` line
+
+## Log / input patterns
+
+### sstable_timeline.sh — Cassandra debug log
 
 Cassandra 4.1:
 ```
@@ -55,30 +92,51 @@ Deleting sstable: /cassandra1/./data/data/ks/tbl-uuid/nb-101-big
 
 Key differences handled: `BigTableReader:big(...)` syntax, KiB sizes, relative `./` paths in compaction/deletion, multiple paths per flush line (sharded flush), empty output list `to []` (produces no compaction event).
 
+### sstablemetadata_viz.sh — sstablemetadata output
+
+```
+SSTable: /cassandra/data/keyspace/table-uuid/nb-13-big
+Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
+Maximum timestamp: 04/05/2026 03:38:45 (1775374725524002)
+First token: -5519576429900224076 (keyspace:table:9)
+Last token:  8615509011068470516 (keyspace:table:10)
+...
+IsTransient: false
+```
+
+Token values are 64-bit signed integers (Murmur3 range: −2⁶³ to 2⁶³−1). Stored as exact strings for tooltips; `Number()` used for canvas rendering (precision loss at this scale is acceptable for pixel-level display).
+
 ## Testing
 
 Output filename defaults to input filename with `.html` extension (e.g. `foo.log` → `foo.html`). Override with a second argument.
 
 ```bash
 # Cassandra 4.1 sample
-./sstable_timeline.sh 4.1_debug_grep_prefixed.log
+./sstable_timeline.sh tests/sstable_timeline/4.1_debug_grep_prefixed.log
 open 4.1_debug_grep_prefixed.html
 
 # Cassandra 5.0 UCS sharded flush sample
-./sstable_timeline.sh 5.0_debug_ucs_sharded_flush.log
+./sstable_timeline.sh tests/sstable_timeline/5.0_debug_ucs_sharded_flush.log
 open 5.0_debug_ucs_sharded_flush.html
+
+# sstablemetadata sample
+./sstablemetadata_viz.sh tests/sstablemetadata_viz/5.0_sstablemetadata_sstable_activity.out
+open 5.0_sstablemetadata_sstable_activity.html
 ```
 
 ### Automated tests
 
 ```bash
-./tests/run_tests.sh
+./tests/run_tests.sh                          # all tools
+./tests/sstable_timeline/run_tests.sh         # sstable_timeline only
+./tests/sstablemetadata_viz/run_tests.sh      # sstablemetadata_viz only
 ```
 
-- **`tests/test_parser.bats`** — bats tests invoking `--parse-only` against fixture files in `tests/fixtures/`
-- **`tests/test_visualization.js`** — node tests that extract the `===BEGIN/END_DATA_PROCESSING===` block from the script and run it with test data
+Each tool's test directory contains:
+- `test_parser.bats` — bats tests invoking `--parse-only` against fixture files
+- `test_visualization.js` — node tests extracting the `===BEGIN/END_DATA_PROCESSING===` block from the script and running it with synthetic data
 
-Test fixtures (all in `tests/fixtures/`):
+### sstable_timeline fixtures (`tests/sstable_timeline/fixtures/`)
 
 | Fixture | What it covers |
 |---------|----------------|
@@ -93,6 +151,16 @@ Test fixtures (all in `tests/fixtures/`):
 | `delete_5x.log` | 5.0 deletion with `./` path components |
 | `4.1_full.expected` | golden output of `4.1_debug_grep_prefixed.log` |
 | `5.0_full.expected` | golden output of `5.0_debug_ucs_sharded_flush.log` |
+
+### sstablemetadata_viz fixtures (`tests/sstablemetadata_viz/fixtures/`)
+
+| Fixture | What it covers |
+|---------|----------------|
+| `single_block.out` | one SSTable block — name, keyspace, timestamps, tokens |
+| `multi_block.out` | two distinct SSTable blocks |
+| `duplicate_blocks.out` | same SSTable repeated 3× — deduplication to one row |
+| `no_istransient.out` | block with no `IsTransient:` line — emitted by AWK `END` rule |
+| `5.0_full.expected` | golden output of `5.0_sstablemetadata_sstable_activity.out` |
 
 ## Requirements
 

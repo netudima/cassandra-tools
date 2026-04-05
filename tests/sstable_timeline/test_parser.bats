@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
 
-SCRIPT="$BATS_TEST_DIRNAME/../sstable_timeline.sh"
+SCRIPT="$BATS_TEST_DIRNAME/../../sstable_timeline.sh"
 FIXTURES="$BATS_TEST_DIRNAME/fixtures"
-LOG_4_1="$BATS_TEST_DIRNAME/../4.1_debug_grep_prefixed.log"
-LOG_5_0="$BATS_TEST_DIRNAME/../5.0_debug_ucs_sharded_flush.log"
+LOG_4_1="$BATS_TEST_DIRNAME/4.1_debug_grep_prefixed.log"
+LOG_5_0="$BATS_TEST_DIRNAME/5.0_debug_ucs_sharded_flush.log"
 
 parse() { bash -c "'$SCRIPT' --parse-only '$1' 2>/dev/null"; }
 

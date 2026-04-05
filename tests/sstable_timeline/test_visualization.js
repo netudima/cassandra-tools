@@ -8,7 +8,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-const SCRIPT = path.resolve(__dirname, '../sstable_timeline.sh');
+const SCRIPT = path.resolve(__dirname, '../../sstable_timeline.sh');
 
 // Extract the data-processing block from sstable_timeline.sh at runtime.
 const dataProcessingJS = execSync(

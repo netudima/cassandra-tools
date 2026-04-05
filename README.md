@@ -2,6 +2,13 @@
 
 Tools for analyzing and visualizing Apache Cassandra operations.
 
+## Tools
+
+- [SSTable Timeline Generator](#sstable-timeline-generator) — visualize SSTable lifecycles from Cassandra debug logs
+- [SSTable Metadata Visualizer](#sstable-metadata-visualizer) — visualize timestamp and token ranges from `sstablemetadata` output
+
+---
+
 ## SSTable Timeline Generator
 
 Visualize the lifecycle of Cassandra SSTables from creation to deletion.
@@ -209,6 +216,83 @@ The timeline helps identify:
 **Performance with large logs**:
 - Consider filtering logs by date range first
 - Use `grep` to extract relevant time periods
+
+---
+
+## SSTable Metadata Visualizer
+
+Visualize timestamp ranges and token ranges for Cassandra SSTables from `sstablemetadata` output.
+
+### Features
+
+- **Two-Tab HTML Visualization** — switch between Timestamp Ranges and Token Ranges views
+- **Timestamp Ranges Tab** — horizontal bar per SSTable showing min/max timestamp extent
+- **Token Ranges Tab** — horizontal bar per SSTable plotted against the full Murmur3 ring (−2⁶³ to 2⁶³−1)
+- **Hover Tooltips** — exact min/max timestamps with duration, or first/last tokens with ring coverage percentage
+- **Mouse Zoom** — click and drag to zoom into a time or token range; Reset Zoom to return
+- **Deduplication** — if the same SSTable path appears multiple times in the input, it is shown once
+- **Dark Theme** — consistent styling with SSTable Timeline Generator
+
+### Quick Start
+
+```bash
+# Capture sstablemetadata output for multiple SSTables
+sstablemetadata /path/to/data/keyspace/table-uuid/*.db > metadata.out
+
+# Or with nodetool (Cassandra 4.x+)
+nodetool sstablemetadata /path/to/data/keyspace/table-uuid/*.db > metadata.out
+
+./sstablemetadata_viz.sh metadata.out
+open metadata.html
+```
+
+### Usage
+
+```bash
+./sstablemetadata_viz.sh [--parse-only] <metadata-file> [output.html]
+```
+
+**Arguments:**
+- `--parse-only` — (Optional) Print pipe-delimited parsed rows to stdout instead of generating HTML; useful for debugging and scripting
+- `metadata-file` — Path to concatenated `sstablemetadata` output
+- `output.html` — (Optional) Output HTML filename (default: input filename with `.html` extension)
+
+**Examples:**
+
+```bash
+# Basic usage
+./sstablemetadata_viz.sh metadata.out
+
+# Specify output file
+./sstablemetadata_viz.sh metadata.out my_viz.html
+
+# Inspect parsed rows (header + pipe-delimited rows)
+./sstablemetadata_viz.sh --parse-only metadata.out
+```
+
+### Input Format
+
+The script reads the output of `sstablemetadata` (one or more SSTables concatenated). Each SSTable block starts with `SSTable: <path>`. The following fields are extracted:
+
+```
+SSTable: /cassandra/data/keyspace/table-uuid/nb-13-big
+Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
+Maximum timestamp: 04/05/2026 03:38:45 (1775374725524002)
+First token: -5519576429900224076 (keyspace:table:9)
+Last token:  8615509011068470516 (keyspace:table:10)
+...
+IsTransient: false
+```
+
+All other lines in each block are ignored. The same SSTable path appearing multiple times (e.g. from running `sstablemetadata` on overlapping file lists) is deduplicated — only the first occurrence is kept.
+
+### Requirements
+
+- `bash` (4.0+)
+- `gawk` (GNU AWK)
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+
+See [Installing gawk](#installing-gawk) above.
 
 ## License
 

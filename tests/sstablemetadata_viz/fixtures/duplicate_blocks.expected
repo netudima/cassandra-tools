@@ -1,0 +1,2 @@
+sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token
+nb-13-big|system.sstable_activity_v2|1775374724542000|1775374725524002|-5519576429900224076|8615509011068470516

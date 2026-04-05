@@ -3,16 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-echo "=== Parser tests ==="
-bats "$SCRIPT_DIR/test_parser.bats"
+echo "=== sstable_timeline tests ==="
+bash "$SCRIPT_DIR/sstable_timeline/run_tests.sh"
 
 echo ""
-echo "=== Visualization tests ==="
-if command -v node > /dev/null 2>&1; then
-    node "$SCRIPT_DIR/test_visualization.js"
-else
-    echo "SKIP: node not found — install Node.js to run visualization tests"
-fi
+echo "=== sstablemetadata_viz tests ==="
+bash "$SCRIPT_DIR/sstablemetadata_viz/run_tests.sh"
 
 echo ""
 echo "All tests passed."
