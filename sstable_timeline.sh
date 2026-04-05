@@ -13,7 +13,7 @@ if [ $# -lt 1 ]; then
 fi
 
 LOGFILE="$1"
-OUTPUT="${2:-sstable_timeline.html}"
+OUTPUT="${2:-${LOGFILE%.*}.html}"
 
 if [ ! -f "$LOGFILE" ]; then
     echo "Error: Log file '$LOGFILE' not found"

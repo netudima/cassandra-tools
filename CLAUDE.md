@@ -27,9 +27,16 @@ Deleting sstable: /ks/tbl-uuid/xx-4472-yy
 
 ## Testing
 
+Output filename defaults to input filename with `.html` extension (e.g. `foo.log` → `foo.html`). Override with a second argument.
+
 ```bash
-./sstable_timeline.sh sample_data_from_debug.log
-open sample_data_from_debug.html
+# Cassandra 4.1 sample
+./sstable_timeline.sh 4.1_debug_grep_prefixed.log
+open 4.1_debug_grep_prefixed.html
+
+# Cassandra 5.0 UCS sharded flush sample
+./sstable_timeline.sh 5.0_debug_ucs_sharded_flush.log
+open 5.0_debug_ucs_sharded_flush.html
 ```
 
 ## Requirements
