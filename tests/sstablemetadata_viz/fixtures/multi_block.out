@@ -3,10 +3,34 @@ Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
 Maximum timestamp: 04/05/2026 03:38:45 (1775374725524002)
 First token: -5519576429900224076 (system:sstable_activity_v2:9)
 Last token:  8615509011068470516 (system:sstable_activity_v2:10)
+TTL min: 0
+TTL max: 0
+Compression ratio: 0.38903394255874674
+Estimated droppable tombstones: 1.0
+Estimated tombstone drop times:
+   Percentiles
+   50th      1996099046 (04/02/2033 19:57:26)
+Partition Size:
+   Percentiles
+   50th      50 (50 B)
+Column Count:
+Estimated cardinality: 16
 IsTransient: false
 SSTable: /cassandra/data/system/sstable_activity_v2-62efe31f3be8310c8d298963439c1288/nb-14-big
 Minimum timestamp: 04/05/2026 06:38:45 (1775385525477000)
 Maximum timestamp: 04/05/2026 06:38:45 (1775385525907000)
 First token: -9171254530300049344 (system:sstable_activity_v2:1)
 Last token:  8686683291491149315 (system:sstable_activity_v2:18)
+TTL min: 0
+TTL max: 0
+Compression ratio: 0.3629032258064516
+Estimated droppable tombstones: 1.0
+Estimated tombstone drop times:
+   Percentiles
+   50th      1996099046 (04/02/2033 19:57:26)
+Partition Size:
+   Percentiles
+   50th      50 (50 B)
+Column Count:
+Estimated cardinality: 8
 IsTransient: false
