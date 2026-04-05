@@ -696,9 +696,8 @@ cat > "$HTML_TAIL" << 'HTMLEOF'
         // Color by droppable fraction: green ≥ 0.9, amber 0.3–0.9, red < 0.3
         function tombColor(droppable) {
             if (droppable === null) return '#555';
-            if (droppable >= 0.9)  return '#4CAF50';
-            if (droppable >= 0.3)  return '#FF9800';
-            return '#F44336';
+            const hue = Math.round((1 - droppable) * 120);
+            return `hsl(${hue}, 80%, 42%)`;
         }
 
         function buildTombArr() {

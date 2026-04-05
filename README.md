@@ -225,11 +225,14 @@ Visualize timestamp ranges and token ranges for Cassandra SSTables from `sstable
 
 ### Features
 
-- **Two-Tab HTML Visualization** — switch between Timestamp Ranges and Token Ranges views
+- **Five-Tab HTML Visualization** — Timestamp Ranges, Token Ranges, Density, Tombstones, TTL
 - **Timestamp Ranges Tab** — horizontal bar per SSTable showing min/max timestamp extent
 - **Token Ranges Tab** — horizontal bar per SSTable plotted against the full Murmur3 ring (−2⁶³ to 2⁶³−1)
-- **Hover Tooltips** — exact min/max timestamps with duration, or first/last tokens with ring coverage percentage
-- **Mouse Zoom** — click and drag to zoom into a time or token range; Reset Zoom to return
+- **Density Tab** — estimated bytes per token fraction on a log₂ scale, colored by UCS level
+- **Tombstones Tab** — droppable tombstone fraction (0–1) per SSTable; color ranges from green (near 0) through yellow and orange to red (near 1); drop time p50 in tooltip
+- **TTL Tab** — min/max TTL range bars per SSTable with human-readable durations; "No TTL" shown for SSTables without TTL data
+- **Hover Tooltips** — exact min/max timestamps, token ring coverage, density, tombstone fraction, and TTL details per SSTable
+- **Mouse Zoom** — click and drag to zoom into any range; independent zoom state per tab; Reset Zoom to return
 - **Deduplication** — if the same SSTable path appears multiple times in the input, it is shown once
 - **Dark Theme** — consistent styling with SSTable Timeline Generator
 
@@ -270,6 +273,18 @@ open metadata.html
 ./sstablemetadata_viz.sh --parse-only metadata.out
 ```
 
+### Supported Cassandra Versions
+
+Both Cassandra 4.1 and 5.0 `sstablemetadata` output formats are supported. The timestamp field layout differs between versions:
+
+```
+# Cassandra 4.1 — epoch µs before the parenthesised date
+Minimum timestamp: 1775400530638000 (04/05/2026 10:48:50)
+
+# Cassandra 5.0 — epoch µs inside the parentheses
+Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
+```
+
 ### Input Format
 
 The script reads the output of `sstablemetadata` (one or more SSTables concatenated). Each SSTable block starts with `SSTable: <path>`. The following fields are extracted:
@@ -280,7 +295,17 @@ Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
 Maximum timestamp: 04/05/2026 03:38:45 (1775374725524002)
 First token: -5519576429900224076 (keyspace:table:9)
 Last token:  8615509011068470516 (keyspace:table:10)
-...
+Compression ratio: 0.389
+TTL min: 0
+TTL max: 0
+Estimated droppable tombstones: 1.0
+Estimated tombstone drop times:
+   Percentiles
+   50th      1996099046 (04/02/2033 19:57:26)
+Partition Size:
+   Percentiles
+   50th      50 (50 B)
+Estimated cardinality: 16
 IsTransient: false
 ```
 

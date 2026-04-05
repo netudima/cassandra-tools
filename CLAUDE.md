@@ -5,7 +5,7 @@
 Two tools, each a single self-contained script at the repo root:
 
 - **`sstable_timeline.sh`** — parses Cassandra debug logs, generates an interactive HTML timeline of SSTable lifecycles.
-- **`sstablemetadata_viz.sh`** — parses `sstablemetadata` output, generates an HTML visualization with timestamp-range and token-range tabs.
+- **`sstablemetadata_viz.sh`** — parses `sstablemetadata` output, generates a five-tab HTML visualization (Timestamp Ranges, Token Ranges, Density, Tombstones, TTL).
 
 Tests and sample data live under `tests/<tool-name>/`.
 
@@ -30,8 +30,8 @@ The JS data-processing block inside each HTML heredoc is delimited with `===BEGI
 
 ### sstablemetadata_viz.sh
 
-- **`SECTION: AWK PARSER`** — `run_parser()` outputs `sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token`
-- **`SECTION: HTML GENERATION`** — heredocs `HTML_HEAD` / `HTML_TAIL`; two-tab Canvas visualization (Timestamp Ranges, Token Ranges)
+- **`SECTION: AWK PARSER`** — `run_parser()` outputs 13 fields: `sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token|compression_ratio|cardinality|partition_size_p50|droppable_tombstones|tombstone_drop_p50_s|ttl_min_s|ttl_max_s`
+- **`SECTION: HTML GENERATION`** — heredocs `HTML_HEAD` / `HTML_TAIL`; five-tab Canvas visualization (Timestamp Ranges, Token Ranges, Density, Tombstones, TTL)
 
 ## `--parse-only` mode
 
@@ -53,8 +53,8 @@ timestamp|event_type|sstable_name|size_mb|compaction_id|keyspace.table
 ./sstablemetadata_viz.sh --parse-only metadata.out
 ```
 ```
-sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token
-nb-13-big|system.sstable_activity_v2|1775374724542000|1775374725524002|-5519576429900224076|8615509011068470516
+sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token|compression_ratio|cardinality|partition_size_p50|droppable_tombstones|tombstone_drop_p50_s|ttl_min_s|ttl_max_s
+nb-13-big|system.sstable_activity_v2|1775374724542000|1775374725524002|-5519576429900224076|8615509011068470516|0.38903394255874674|16|50|1.0|1996099046|0|0
 ```
 
 ## AWK parser functions
@@ -70,7 +70,7 @@ nb-13-big|system.sstable_activity_v2|1775374724542000|1775374725524002|-55195764
 
 - `extract_sstable_name(path)` — last path component
 - `extract_keyspace_table(path)` — same UUID-stripping logic as sstable_timeline.sh
-- State machine: `SSTable:` resets current block; `Minimum/Maximum timestamp:` extracts µs epoch from `(...)`; `First/Last token:` extracts numeric prefix; `IsTransient:` emits the row if not already seen (deduplication via `seen[]` array); `END` rule emits the last block if it had no `IsTransient:` line
+- State machine: `SSTable:` resets current block; `Minimum/Maximum timestamp:` extracts µs epoch — tries `(13+ digits)` first (5.0 format), falls back to `space + 13+ digits` (4.1 format); `First/Last token:` extracts numeric prefix; unified `cur_section` + `in_section_percentiles` captures p50 from `Estimated tombstone drop times:` and `Partition Size:` histogram blocks; `TTL min/max:` extracts first integer; `IsTransient:` emits the row if not already seen (deduplication via `seen[]` array); `END` rule emits the last block if it had no `IsTransient:` line
 
 ## Log / input patterns
 
@@ -94,13 +94,32 @@ Key differences handled: `BigTableReader:big(...)` syntax, KiB sizes, relative `
 
 ### sstablemetadata_viz.sh — sstablemetadata output
 
+Cassandra 4.1 — epoch µs before the parenthesised date:
+```
+Minimum timestamp: 1775400530638000 (04/05/2026 10:48:50)
+```
+
+Cassandra 5.0 — epoch µs inside the parentheses:
+```
+Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
+```
+
+Other extracted fields (same format in both versions):
 ```
 SSTable: /cassandra/data/keyspace/table-uuid/nb-13-big
-Minimum timestamp: 04/05/2026 03:38:44 (1775374724542000)
-Maximum timestamp: 04/05/2026 03:38:45 (1775374725524002)
 First token: -5519576429900224076 (keyspace:table:9)
 Last token:  8615509011068470516 (keyspace:table:10)
-...
+Compression ratio: 0.389
+TTL min: 0
+TTL max: 0
+Estimated droppable tombstones: 1.0
+Estimated tombstone drop times:
+   Percentiles
+   50th      1996099046 (04/02/2033 19:57:26)
+Partition Size:
+   Percentiles
+   50th      50 (50 B)
+Estimated cardinality: 16
 IsTransient: false
 ```
 
@@ -119,9 +138,13 @@ open 4.1_debug_grep_prefixed.html
 ./sstable_timeline.sh tests/sstable_timeline/5.0_debug_ucs_sharded_flush.log
 open 5.0_debug_ucs_sharded_flush.html
 
-# sstablemetadata sample
+# sstablemetadata 5.0 sample
 ./sstablemetadata_viz.sh tests/sstablemetadata_viz/5.0_sstablemetadata_sstable_activity.out
 open 5.0_sstablemetadata_sstable_activity.html
+
+# sstablemetadata 4.1 sample
+./sstablemetadata_viz.sh tests/sstablemetadata_viz/4.1_sstablemetadata_sstable_activity.out
+open 4.1_sstablemetadata_sstable_activity.html
 ```
 
 ### Automated tests
@@ -156,10 +179,12 @@ Each tool's test directory contains:
 
 | Fixture | What it covers |
 |---------|----------------|
-| `single_block.out` | one SSTable block — name, keyspace, timestamps, tokens |
+| `single_block.out` | one SSTable block — name, keyspace, timestamps, tokens, all 13 fields |
 | `multi_block.out` | two distinct SSTable blocks |
 | `duplicate_blocks.out` | same SSTable repeated 3× — deduplication to one row |
 | `no_istransient.out` | block with no `IsTransient:` line — emitted by AWK `END` rule |
+| `4.1_single_block.out` | 4.1-format timestamps (`epoch (date)`) — verifies fallback parsing |
+| `4.1_full.expected` | golden output of `4.1_sstablemetadata_sstable_activity.out` |
 | `5.0_full.expected` | golden output of `5.0_sstablemetadata_sstable_activity.out` |
 
 ## Requirements
