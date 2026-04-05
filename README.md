@@ -87,6 +87,9 @@ The generated HTML shows:
 # Specify output file
 ./sstable_timeline.sh debug.log my_timeline.html
 
+# Inspect parsed events (header + pipe-delimited rows)
+./sstable_timeline.sh --parse-only debug.log | head
+
 # Process a specific date's logs
 grep "2026-01-16" debug.log > filtered.log
 ./sstable_timeline.sh filtered.log
@@ -115,23 +118,56 @@ sudo apt-get install gawk
 sudo yum install gawk
 ```
 
+### Supported Cassandra Versions
+
+| Version | Flush | Sharded flush (UCS) | Compaction | Deletion |
+|---------|-------|---------------------|------------|----------|
+| 4.1     | ✓     | N/A                 | ✓          | ✓        |
+| 5.0     | ✓     | ✓                   | ✓          | ✓        |
+
+Sizes in GiB, MiB, and KiB are all converted to MiB.
+
+**Cassandra 4.1** — fully supported. Each flush produces one SSTable.
+
+**Cassandra 5.0** — fully supported, including the Unified Compaction Strategy (UCS):
+- Sharded flushes produce multiple SSTables per flush event — each is tracked independently
+- Compaction and deletion paths may be relative (`./data/data/...`) — correctly handled
+- UCS compactions with no output SSTables (`to []`) produce no compaction event; the SSTable deletions that follow will appear as pre-existing (gray) bars
+
+Earlier versions (3.x, 4.0) are likely to work if the log format matches the patterns above, but have not been tested.
+
 ### Log Format
 
-The script parses Cassandra debug logs for three types of events:
+The script parses Cassandra debug logs for three types of events.
 
 1. **Flush Events** (MemTable → SSTable):
 ```
-DEBUG [MemtableFlushWriter:22594] 2026-01-16 00:00:08,377 ColumnFamilyStore.java:1197 - Flushed to [BigTableReader(path='/path/nb-4477-big-Data.db')] (1 sstables, 59.399MiB)
+# Cassandra 4.1
+DEBUG [MemtableFlushWriter:1] 2026-01-16 00:00:08,377 - Flushed to [BigTableReader(path='/path/nb-4477-big-Data.db')] (1 sstables, 59.399MiB), biggest 59.399MiB
+
+# Cassandra 5.0 (single SSTable)
+DEBUG [MemtableFlushWriter:2] 2026-04-01 16:52:25,293 - Flushed to [BigTableReader:big(path='/path/nb-102-big-Data.db')] (1 sstables, 5.975KiB), biggest 5.975KiB
+
+# Cassandra 5.0 UCS sharded flush (multiple SSTables per flush)
+DEBUG [MemtableFlushWriter:6] 2026-04-01 17:12:43,392 - Flushed to [BigTableReader:big(path='/path/nb-2-big-Data.db'), BigTableReader:big(path='/path/nb-3-big-Data.db'), ...] (8 sstables, 911.193MiB), biggest 114.322MiB
 ```
 
 2. **Compaction Events** (SSTable merges):
 ```
-INFO  [CompactionExecutor:135305] 2026-01-16 03:17:04,340 CompactionTask.java:241 - Compacted (uuid) 1 sstables to [/path/nb-4478-big,] to level=0.  13.516GiB to 13.516GiB
+# Cassandra 4.1
+INFO  [CompactionExecutor:1] 2026-01-16 03:17:04,340 - Compacted (uuid) 1 sstables to [/path/nb-4478-big,] to level=0.  13.516GiB to 13.516GiB
+
+# Cassandra 5.0
+INFO  [CompactionExecutor:1] 2026-04-01 16:52:25,843 - Compacted (uuid) 4 sstables to [./data/path/nb-105-big,] to level=0.  1.058KiB to 761B
 ```
 
 3. **Deletion Events**:
 ```
+# Cassandra 4.1
 INFO  [NonPeriodicTasks:1] 2026-01-16 03:17:04,345 SSTable.java:111 - Deleting sstable: /path/nb-4472-big
+
+# Cassandra 5.0
+INFO  [NonPeriodicTasks:1] 2026-04-01 16:52:25,900 BigFormat.java:231 - Deleting sstable: /cassandra1/./data/data/path/nb-101-big
 ```
 
 ### Understanding the Visualization
@@ -162,9 +198,13 @@ The timeline helps identify:
 - Ensure MemtableFlushWriter and CompactionExecutor messages are present
 
 **Empty timeline**:
-- SSTables need at least a deletion event to appear
-- SSTables without deletion events (still in use) won't show on timeline
-- Pre-existing SSTables (deleted but not created in log) will appear as gray bars
+- SSTables need at least a creation (flush/compaction) or deletion event to appear
+- SSTables still active at the end of the log are shown with an amber (►) marker
+- Pre-existing SSTables (deleted but not created in log) appear as gray bars
+
+**No compaction events in Cassandra 5.0 UCS logs**:
+- UCS compactions that produce no output SSTables (`to []`) are skipped — this is expected
+- Use `--parse-only` to verify which events were extracted
 
 **Performance with large logs**:
 - Consider filtering logs by date range first
