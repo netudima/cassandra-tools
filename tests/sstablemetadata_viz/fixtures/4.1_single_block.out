@@ -1,0 +1,18 @@
+SSTable: /data/system/sstable_activity_v2-62efe31f3be8310c8d298963439c1288/nb-501-big
+Minimum timestamp: 1775400530638000 (04/05/2026 10:48:50)
+Maximum timestamp: 1775400810116000 (04/05/2026 10:53:30)
+Compression ratio: 0.45037400915485093
+TTL min: 864000 (10 days)
+TTL max: 864000 (10 days)
+First token: -8872823612301377309 (system_auth:role_permissions:2)
+Last token:  8915972086048432522 (quotacache_l:linemacro:17)
+Estimated droppable tombstones: 0.0
+Estimated tombstone drop times:
+   Percentiles
+   50th      1996099046 (04/02/2033 19:57:26)
+Partition Size:
+   Percentiles
+   50th      86 (86 B)
+Column Count:
+Estimated cardinality: 106
+IsTransient: false

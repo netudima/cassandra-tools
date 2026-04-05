@@ -77,13 +77,13 @@ function extract_keyspace_table(path) {
 }
 
 /^Minimum timestamp:/ {
-    match($0, /\(([0-9]+)\)/, arr)
-    cur_min_ts = arr[1]
+    if (match($0, /\(([0-9]{13,})\)/, arr)) cur_min_ts = arr[1]
+    else { match($0, /[[:space:]]([0-9]{13,})/, arr); cur_min_ts = arr[1] }
 }
 
 /^Maximum timestamp:/ {
-    match($0, /\(([0-9]+)\)/, arr)
-    cur_max_ts = arr[1]
+    if (match($0, /\(([0-9]{13,})\)/, arr)) cur_max_ts = arr[1]
+    else { match($0, /[[:space:]]([0-9]{13,})/, arr); cur_max_ts = arr[1] }
 }
 
 /^First token:/ {

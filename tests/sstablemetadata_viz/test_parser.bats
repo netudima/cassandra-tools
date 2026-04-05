@@ -2,7 +2,8 @@
 
 SCRIPT="$BATS_TEST_DIRNAME/../../sstablemetadata_viz.sh"
 FIXTURES="$BATS_TEST_DIRNAME/fixtures"
-SAMPLE="$BATS_TEST_DIRNAME/5.0_sstablemetadata_sstable_activity.out"
+SAMPLE_50="$BATS_TEST_DIRNAME/5.0_sstablemetadata_sstable_activity.out"
+SAMPLE_41="$BATS_TEST_DIRNAME/4.1_sstablemetadata_sstable_activity.out"
 
 parse() { bash -c "'$SCRIPT' --parse-only '$1' 2>/dev/null"; }
 
@@ -44,9 +45,21 @@ parse() { bash -c "'$SCRIPT' --parse-only '$1' 2>/dev/null"; }
 # ── Golden regression test ────────────────────────────────────────────────────
 
 @test "golden: full 5.0 sstablemetadata sample produces expected output (regression)" {
-    run parse "$SAMPLE"
+    run parse "$SAMPLE_50"
     [ "$status" -eq 0 ]
     diff <(echo "$output") "$FIXTURES/5.0_full.expected"
+}
+
+@test "4.1 format: timestamp before parenthesis (epoch then date) parsed correctly" {
+    run parse "$FIXTURES/4.1_single_block.out"
+    [ "$status" -eq 0 ]
+    diff <(echo "$output") "$FIXTURES/4.1_single_block.expected"
+}
+
+@test "golden: full 4.1 sstablemetadata sample produces expected output (regression)" {
+    run parse "$SAMPLE_41"
+    [ "$status" -eq 0 ]
+    diff <(echo "$output") "$FIXTURES/4.1_full.expected"
 }
 
 @test "missing file exits with error" {

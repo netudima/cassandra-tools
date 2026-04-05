@@ -1,0 +1,2 @@
+sstable_name|keyspace_table|min_ts_us|max_ts_us|first_token|last_token|compression_ratio|cardinality|partition_size_p50|droppable_tombstones|tombstone_drop_p50_s|ttl_min_s|ttl_max_s
+nb-501-big|system.sstable_activity_v2|1775400530638000|1775400810116000|-8872823612301377309|8915972086048432522|0.45037400915485093|106|86|0.0|1996099046|864000|864000
