@@ -3,7 +3,6 @@
 # SSTable Timeline Generator
 # Parses Cassandra logs and generates an interactive HTML timeline visualization
 # Usage: ./sstable_timeline.sh <logfile> [output.html]
-
 set -euo pipefail
 
 # Check arguments
@@ -45,7 +44,12 @@ function parse_size(size_str) {
 function extract_sstable_name(path) {
     # SSTable filename format: prefix-XXXX-suffix[-Data.db]
     # Extract the last path component, strip -Data.db and any trailing comma
-    if (match(path, /\/([^\/,]+?)(-Data\.db)?[,]?$/, arr)) {
+    # Note: gawk non-greedy +? does not backtrack into optional (-Data\.db)? group,
+    # so use two explicit patterns: with -Data.db first, then without.
+    if (match(path, /\/([^\/,]+)-Data\.db[,]?$/, arr)) {
+        return arr[1]
+    }
+    if (match(path, /\/([^\/,]+)[,]?$/, arr)) {
         return arr[1]
     }
     return path
@@ -70,15 +74,18 @@ function extract_keyspace_table(path) {
     match($0, /([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})/, ts)
     timestamp = ts[1]
 
-    match($0, /path=.([^'"'"']+)/, p)
-    path = p[1]
-    sstable = extract_sstable_name(path)
-    kstable = extract_keyspace_table(path)
-
     match($0, /biggest ([0-9.]+[GM]iB)/, s)
     size_mb = parse_size(s[1])
 
-    print timestamp "|flush|" sstable "|" size_mb "||" kstable
+    str = $0
+    while (match(str, /path=.([^'"'"']+)/, p)) {
+        path = p[1]
+        rstart = RSTART; rlength = RLENGTH
+        sstable = extract_sstable_name(path)
+        kstable = extract_keyspace_table(path)
+        print timestamp "|flush|" sstable "|" size_mb "||" kstable
+        str = substr(str, rstart + rlength)
+    }
 }
 
 /Compacted.*sstables to/ {
@@ -90,14 +97,19 @@ function extract_keyspace_table(path) {
     compaction_id = uuid[1]
 
     match($0, /sstables to \[([^\]]+)\]/, p)
-    path = p[1]
-    sstable = extract_sstable_name(path)
-    kstable = extract_keyspace_table(path)
+    bracket_content = p[1]
 
     match($0, /\.  ([0-9.]+[GM]iB) to ([0-9.]+[GM]iB)/, s)
     size_mb = parse_size(s[2])
 
-    print timestamp "|compaction|" sstable "|" size_mb "|" compaction_id "|" kstable
+    n_paths = split(bracket_content, paths, ",")
+    for (i = 1; i <= n_paths; i++) {
+        path = paths[i]
+        if (path == "") continue
+        sstable = extract_sstable_name(path)
+        kstable = extract_keyspace_table(path)
+        print timestamp "|compaction|" sstable "|" size_mb "|" compaction_id "|" kstable
+    }
 }
 
 /Deleting sstable:/ {
