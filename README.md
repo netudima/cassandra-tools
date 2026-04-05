@@ -75,7 +75,7 @@ The generated HTML shows:
 
 **Arguments:**
 - `logfile` - Path to Cassandra debug log file
-- `output.html` - (Optional) Output filename (default: sstable_timeline.html)
+- `output.html` - (Optional) Output filename (default: input filename with `.html` extension)
 
 **Examples:**
 
@@ -171,4 +171,4 @@ The timeline helps identify:
 
 ## License
 
-MIT
+Apache License 2.0
